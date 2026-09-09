@@ -16,6 +16,9 @@ const server = http.createServer(app);
 const isProd = process.env.NODE_ENV === 'production';
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
+// Railwayなどリバースプロキシ経由でHTTPSを使う場合に必要
+app.set('trust proxy', 1);
+
 const io = new Server(server, {
   cors: {
     origin: isProd ? true : clientUrl,
@@ -38,12 +41,14 @@ if (!isProd) {
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
+// セッションミドルウェアを1つだけ定義してHTTPとSocket.io両方で共有
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'canvas-secret-dev',
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
     secure: isProd,
     sameSite: isProd ? 'none' : 'lax',
   },
@@ -66,7 +71,10 @@ app.post('/auth/login', (req, res) => {
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name.trim())}&background=5865f2&color=fff&size=64`,
   };
   req.session.user = user;
-  res.json(user);
+  req.session.save((err) => {
+    if (err) return res.status(500).json({ error: 'セッション保存エラー' });
+    res.json(user);
+  });
 });
 
 app.post('/auth/logout', (req, res) => {
@@ -138,6 +146,7 @@ if (isProd) {
 }
 
 // ===== リアルタイム共同編集 =====
+// 同じsessionMiddlewareインスタンスをSocket.ioでも使う
 io.use((socket, next) => {
   sessionMiddleware(socket.request, {}, next);
 });
