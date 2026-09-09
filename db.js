@@ -1,7 +1,14 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
-const db = new Database(path.join(__dirname, 'canvas.db'));
+// Railwayではボリュームを /data にマウント、ローカルはプロジェクトルート
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const dbPath = path.join(DATA_DIR, 'canvas.db');
+const db = new Database(dbPath);
+console.log(`DB: ${dbPath}`);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS canvases (
@@ -11,13 +18,6 @@ db.exec(`
     created_by TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS canvas_members (
-    canvas_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'editor',
-    PRIMARY KEY (canvas_id, user_id)
   );
 `);
 
