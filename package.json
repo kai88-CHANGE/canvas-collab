@@ -1,13 +1,17 @@
 {
-  "name": "discord-canvas",
+  "name": "canvas-collab",
   "version": "1.0.0",
   "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server.js",
+    "build": "cd client && npm install && npm run build",
     "dev": "node server.js"
   },
   "license": "ISC",
-  "description": "Slack Canvas風リアルタイム共同エディター",
+  "description": "リアルタイム共同編集キャンバス",
   "dependencies": {
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.6",

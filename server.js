@@ -12,9 +12,13 @@ const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
+
+const isProd = process.env.NODE_ENV === 'production';
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: isProd ? true : clientUrl,
     credentials: true,
   },
 });
@@ -28,19 +32,29 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
-}));
+if (!isProd) {
+  app.use(cors({ origin: clientUrl, credentials: true }));
+}
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
-app.use(session({
+const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'canvas-secret-dev',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
-}));
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+  },
+});
+app.use(sessionMiddleware);
+
+// ===== 本番環境: ビルド済みReactを配信 =====
+if (isProd) {
+  const clientDist = path.join(__dirname, 'client', 'dist');
+  app.use(express.static(clientDist));
+}
 
 // ===== 名前ベース認証 =====
 app.post('/auth/login', (req, res) => {
@@ -116,18 +130,19 @@ app.post('/api/upload', requireAuth, upload.single('image'), (req, res) => {
   res.json({ url: `/uploads/${req.file.filename}` });
 });
 
-// ===== リアルタイム共同編集 =====
-const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET || 'canvas-secret-dev',
-  resave: false,
-  saveUninitialized: false,
-});
+// 本番: 全ルートをReactにフォールバック
+if (isProd) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+  });
+}
 
+// ===== リアルタイム共同編集 =====
 io.use((socket, next) => {
   sessionMiddleware(socket.request, {}, next);
 });
 
-const activeUsers = new Map(); // canvasId -> Map<socketId, userInfo>
+const activeUsers = new Map();
 
 io.on('connection', (socket) => {
   const user = socket.request.session?.user;

@@ -15,7 +15,7 @@ import Toolbar from '../components/Toolbar';
 import ActiveUsers from '../components/ActiveUsers';
 import { fetchCanvas } from '../api';
 
-const SOCKET_URL = 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.PROD ? window.location.origin : 'http://localhost:3001';
 
 export default function CanvasEditor({ canvasId, user, onBack }) {
   const [title, setTitle] = useState('');

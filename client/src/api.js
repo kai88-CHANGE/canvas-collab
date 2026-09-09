@@ -1,4 +1,5 @@
-const BASE = 'http://localhost:3001';
+// 本番はサーバーと同じオリジン、開発はlocalhost:3001
+const BASE = import.meta.env.PROD ? '' : 'http://localhost:3001';
 
 export async function fetchMe() {
   const r = await fetch(`${BASE}/auth/me`, { credentials: 'include' });
