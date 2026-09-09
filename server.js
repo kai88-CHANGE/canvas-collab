@@ -130,9 +130,9 @@ app.post('/api/upload', requireAuth, upload.single('image'), (req, res) => {
   res.json({ url: `/uploads/${req.file.filename}` });
 });
 
-// 本番: 全ルートをReactにフォールバック
+// 本番: 全ルートをReactにフォールバック (Express 5対応)
 if (isProd) {
-  app.get('*', (req, res) => {
+  app.get('/{*splat}', (req, res) => {
     res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
   });
 }
